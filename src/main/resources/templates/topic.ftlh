@@ -1,0 +1,202 @@
+<#include "header.ftlh">
+<#assign pageTitle = topic.title />
+
+<style>
+    /* ============================================= */
+    /* ОБЩИЕ СТИЛИ СТРАНИЦЫ                          */
+    /* ============================================= */
+    body {
+        min-height: 100vh;
+        /* Страница всегда занимает всю высоту экрана — футер будет внизу даже при мало контента */
+        background: #f8f9fa;
+        /* Приятный светло-серый фон (как у Bootstrap) вместо чисто белого */
+    }
+
+    .reaction-container button {
+        min-width: 80px;
+        /* Чтобы кнопки не становились слишком узкими и цифры помещались */
+    }
+
+    .reaction-btn {
+        transition: all 0.2s;
+        /* Плавная анимация при наведении и клике */
+    }
+
+    .reaction-btn:hover {
+        transform: scale(1.1);
+        /* При наведении кнопка увеличивается на 10% — крутой эффект "подпрыгивания" */
+    }
+
+    .card {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        /* Мягкая тень — карточки выглядят объёмно и современно */
+    }
+
+    .list-group-item {
+        border-left: 4px solid transparent;
+        /* Слева невидимая полоска (по умолчанию) */
+        transition: all 0.2s;
+        /* Плавное изменение при наведении */
+    }
+
+    .list-group-item:hover {
+        border-left-color: #0d6efd;
+        /* При наведении появляется синяя полоска слева (цвет primary Bootstrap) */
+        background-color: #f8f9fa;
+        /* Лёгкое подсвечивание фона — сразу видно, на каком посте курсор */
+    }
+
+    .btn-success, .btn-danger {
+        font-weight: bold;
+        /* "Отправить", "Удалить" и другие важные кнопки — жирным шрифтом, чтобы выделялись */
+    }
+</style>
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="m-0">${topic.title}</h1>
+        <#if user?? && (user.id == topic.userId || user.role == 'ADMIN' || user.role == 'MODERATOR')>
+            <div>
+                <a href="${contextPath}/topic/${topic.id}/edit" class="btn btn-sm btn-outline-warning me-1">Редактировать</a>
+                <form action="${contextPath}/topic/${topic.id}/delete" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Удалить топик и все ответы? Это нельзя отменить.')">
+                        Удалить
+                    </button>
+                </form>
+            </div>
+        </#if>
+    </div>
+
+    <div class="card mb-4 border-primary">
+        <div class="card-body">
+            <p class="card-text mb-3">${topic.firstPostText!''}</p>
+            <p class="text-muted small mb-0">
+                <strong>Автор: ${(author.login)!"[Удалён]"}</strong>
+                <#if topic.createdAt??>
+                    • ${topic.createdAt?replace("T", " ")?substring(0, 16)}
+                </#if>
+            </p>
+        </div>
+    </div>
+
+    <h4 class="mb-3">Ответы (${posts?size})</h4>
+
+    <div class="list-group mb-4">
+        <#list posts as post>
+            <#assign postAuthor = userService.findById(post.userId)! />
+            <div class="list-group-item p-4 bg-white border-bottom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center mb-2">
+                            <strong class="me-2">${postAuthor?? ? string(postAuthor.login, "[Удалён]")}</strong>
+                            <small class="text-muted">
+                                <#if post.createdAt??>
+                                    • ${post.createdAt?replace("T", " ")?substring(0, 16)}
+                                </#if>
+                            </small>
+                        </div>
+                        <p class="mb-3">${post.postText}</p>
+
+                        <!-- Лайки и дизлайки -->
+                        <div class="reaction-container d-flex gap-3 mb-3">
+                            <button class="btn btn-outline-success reaction-btn"
+                                    data-reaction="LIKE" data-post-id="${post.id}">
+                                <i class="bi bi-hand-thumbs-up"></i> <span class="like-count">${post.likes!0}</span>
+                            </button>
+                            <button class="btn btn-outline-danger reaction-btn"
+                                    data-reaction="DISLIKE" data-post-id="${post.id}">
+                                <i class="bi bi-hand-thumbs-down"></i> <span class="dislike-count">${post.dislikes!0}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- КНОПКИ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ — ТОЛЬКО ДЛЯ АВТОРА/МОДЕРА/АДМИНА -->
+                    <#if user?? && (user.id == post.userId || user.role == 'ADMIN' || user.role == 'MODERATOR')>
+                        <div class="d-flex flex-column gap-2 ms-3">
+                            <a href="${contextPath}/post/${post.id}/edit"
+                               class="btn btn-sm btn-outline-warning" title="Редактировать">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form action="${contextPath}/post/${post.id}/delete" method="post" class="d-inline m-0">
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Удалить этот пост навсегда?')"
+                                        title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </#if>
+                </div>
+            </div>
+        </#list>
+    </div>
+
+    <#if user??>
+        <div class="card mt-5 border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Написать ответ</h5>
+            </div>
+            <div class="card-body">
+                <form action="${contextPath}/post/create" method="post">
+                    <input type="hidden" name="topicId" value="${topic.id}">
+                    <textarea name="postText" class="form-control" rows="5" placeholder="Напишите что-нибудь полезное..." required></textarea>
+                    <div class="text-end mt-3">
+                        <button type="submit" class="btn btn-success btn-lg">Отправить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <#else>
+        <div class="alert alert-info text-center mt-5">
+            <a href="${contextPath}/auth/login" class="alert-link">Войдите</a>, чтобы ответить в топике
+        </div>
+    </#if>
+    <script>
+        const contextPath = document.body.getAttribute("data-context-path") || "";
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            document.querySelectorAll(".reaction-btn").forEach(function (btn) {
+
+                btn.addEventListener("click", async function () {
+
+                    const postId = this.dataset.postId;
+                    const reaction = this.dataset.reaction;
+
+                    try {
+                        const response = await fetch(contextPath + "/post/" + postId + "/reaction", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded",
+                                "X-Requested-With": "XMLHttpRequest"
+                            },
+                            body: "reaction=" + reaction
+                        });
+
+                        if (!response.ok) {
+                            alert("Ошибка сервера: " + response.status);
+                            return;
+                        }
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            document.querySelector('[data-post-id="' + postId + '"][data-reaction="LIKE"] .like-count').textContent = data.likes;
+                            document.querySelector('[data-post-id="' + postId + '"][data-reaction="DISLIKE"] .dislike-count').textContent = data.dislikes;
+                        } else {
+                            alert(data.message || "Не удалось поставить реакцию");
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert("Нет соединения с сервером");
+                    }
+                });
+            });
+        });
+    </script>
+</div>
+
+<#include "footer.ftlh">
